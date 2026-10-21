@@ -1,13 +1,25 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
+
+function resolvePackageEntry(pkgName) {
+  for (const basePath of [process.execPath, ...process.argv, process.cwd()]) {
+    if (!basePath) continue
+    try {
+      const req = createRequire(basePath)
+      const res = req.resolve(pkgName)
+      if (res) return res
+    } catch {}
+  }
+  return null
+}
 
 function ensurePatches() {
   try {
-    const pkgRoot = '/home/sagirisensei/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai'
-    const connFile = path.join(pkgRoot, 'dsh-client-connection/lib/index.js')
-    const staticFile = path.join(pkgRoot, 'dsh-host-frontend-static/lib/index.js')
+    const connFile = resolvePackageEntry('@deepseek-ai/dsh-client-connection')
+    const staticFile = resolvePackageEntry('@deepseek-ai/dsh-host-frontend-static')
 
-    if (!fs.existsSync(connFile) || !fs.existsSync(staticFile)) return
+    if (!connFile || !staticFile || !fs.existsSync(connFile) || !fs.existsSync(staticFile)) return
 
     // 1. 检查并修补 dsh-host-frontend-static
     let staticSrc = fs.readFileSync(staticFile, 'utf8')
@@ -194,9 +206,17 @@ function parsePostData(req) {
 \t\tif (req.method === "POST" && url.pathname === "/login") {
 \t\t\tconst authority = requestAudience(req.headers, secure);
 \t\t\tparsePostData(req).then((data) => {
-\t\t\t\tconst expectedUser = process.env.DSH_AUTH_USERNAME || "sagirisensei";
-\t\t\t\tconst expectedPass = process.env.DSH_AUTH_PASSWORD || "";
-\t\t\t\tif (expectedPass && data.username === expectedUser && data.password === expectedPass && authority !== void 0) {
+\t\t\t\tconst expectedUser = process.env.DSH_AUTH_USERNAME;
+\t\t\t\tconst expectedPass = process.env.DSH_AUTH_PASSWORD;
+\t\t\t\tif (!expectedUser || !expectedPass) {
+\t\t\t\t\tres.writeHead(500, {
+\t\t\t\t\t\t"cache-control": "no-store",
+\t\t\t\t\t\t"content-type": "text/html; charset=utf-8"
+\t\t\t\t\t});
+\t\t\t\t\tres.end(renderAuthLoginPage("服务端未配置 DSH_AUTH_USERNAME 或 DSH_AUTH_PASSWORD 环境变量"));
+\t\t\t\t\treturn;
+\t\t\t\t}
+\t\t\t\tif (data.username === expectedUser && data.password === expectedPass && authority !== void 0) {
 \t\t\t\t\tconst issuedAt = Date.now();
 \t\t\t\t\tconst expiresAt = issuedAt + this.maxAgeMilliseconds;
 \t\t\t\t\tconst value = encodeCookie({
