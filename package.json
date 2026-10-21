@@ -1,0 +1,16 @@
+{
+  "name": "dsh-custom-auth",
+  "version": "1.0.0",
+  "description": "Custom password login and patch persistence for DSH Web",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
